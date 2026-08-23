@@ -17,6 +17,8 @@ build/
 *.mp4
 *.webm
 *.wav
+*.srt
+*.pptx
 demo_media/
 demo_5min/
 raw_recordings/
