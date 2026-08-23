@@ -12,9 +12,17 @@
 
 <br/>
 
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://socrates-web-beta.vercel.app/)
 [![Watch Demo Video](https://img.shields.io/badge/▶_Watch_Pitch_Video-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/Ce-jjRcyxRY)
 
 </div>
+
+---
+
+## 🌐 Live Interactive Deployment
+Experience Socrates IDE directly in your browser:
+
+👉 **[https://socrates-web-beta.vercel.app/](https://socrates-web-beta.vercel.app/)**
 
 ---
 
