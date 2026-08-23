@@ -1,0 +1,125 @@
+{
+  "name": "Socrates IDE - Student Empathy Telemetry & AI Dispatcher",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "socrates-telemetry",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Socrates IDE Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json.body || $input.item.json;\nreturn {\n  student: item.student_name || 'S EDWIN',\n  question: item.question_title || 'Two Sum',\n  error: item.error_context || 'None',\n  misconception: item.misconception_tag || 'Loop Boundary Error',\n  ai_score: item.ai_score || 75,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "name": "Extract Student Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.ai_score }}",
+              "operation": "smaller",
+              "value2": 80
+            }
+          ]
+        }
+      },
+      "name": "Is Student Struggling?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Alert Sent to Instructor"
+            },
+            {
+              "name": "urgency",
+              "value": "High"
+            },
+            {
+              "name": "message",
+              "value": "Student is struggling with a diagnosed misconception in Socrates IDE"
+            }
+          ]
+        }
+      },
+      "name": "Dispatch Teacher Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [920, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Normal Progress Logged"
+            }
+          ]
+        }
+      },
+      "name": "Log to Database",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [920, 400]
+    }
+  ],
+  "connections": {
+    "Socrates IDE Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Student Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Student Payload": {
+      "main": [
+        [
+          {
+            "node": "Is Student Struggling?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Student Struggling?": {
+      "main": [
+        [
+          {
+            "node": "Dispatch Teacher Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
