@@ -669,7 +669,22 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
           ? 'Function Signature Mismatch' 
           : 'Logic / Boundary Error';
 
-      // Save submission to Supabase with Socratic debugging trail (PRD § 5.2b)
+      // 1. Dispatch real-time telemetry to n8n Cloud Workflow
+      try {
+        fetch('https://edwin98.app.n8n.cloud/webhook/socrates-telemetry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            student_name: 'S EDWIN',
+            question_title: currentQuestion.title,
+            error_context: allPassed ? 'None' : 'Assertion check failed',
+            misconception_tag: tag,
+            ai_score: score
+          })
+        }).catch(() => {});
+      } catch (e) {}
+
+      // 2. Save submission to Supabase with Socratic debugging trail (PRD § 5.2b)
       try {
         const { error } = await supabase.from('submissions').insert([
           {
@@ -709,6 +724,21 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
       ]);
       setAiScore(0);
       
+      // Dispatch syntax error telemetry to n8n Cloud Workflow
+      try {
+        fetch('https://edwin98.app.n8n.cloud/webhook/socrates-telemetry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            student_name: 'S EDWIN',
+            question_title: currentQuestion.title,
+            error_context: rawErr,
+            misconception_tag: 'Syntax / Compilation Error',
+            ai_score: 0
+          })
+        }).catch(() => {});
+      } catch (e) {}
+
       try {
         await supabase.from('submissions').insert([
           {
