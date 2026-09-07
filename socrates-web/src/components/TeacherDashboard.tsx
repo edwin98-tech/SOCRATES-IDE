@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, isLiveDatabase } from '../lib/supabaseClient';
 import { 
   CheckCircle, Flame, Users, TrendingUp, ArrowLeft,
   Award, ShieldAlert, Search, RefreshCw, 
@@ -79,7 +79,34 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 4000);
-    return () => clearInterval(interval);
+
+    // Supabase Realtime channel subscription
+    const channel = supabase.channel('teacher_live_feed')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, () => {
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'anomalies' }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    // Cross-tab broadcast listener for instant multi-window sync
+    const handleDbChange = () => fetchData();
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key?.startsWith('socrates_') || e.key === null) {
+        fetchData();
+      }
+    };
+
+    window.addEventListener('socrates:db_change', handleDbChange);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      try { channel.unsubscribe(); } catch (e) {}
+      window.removeEventListener('socrates:db_change', handleDbChange);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const handleUnblock = async (id: string) => {
@@ -199,7 +226,7 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
                 Socrates Educator Portal
                 <span className="ml-3 text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30 flex items-center">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
-                  Live Polling
+                  {isLiveDatabase ? '🟢 Live Cloud Sync (Supabase)' : '🟡 Demo Mode (Local Fallback)'}
                 </span>
               </h1>
               <p className="text-xs md:text-sm text-gray-400 mt-1">

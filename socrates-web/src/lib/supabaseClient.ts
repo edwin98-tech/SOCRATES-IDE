@@ -258,6 +258,8 @@ class MockQueryBuilder {
 }
 
 // Unified Transparent Supabase Client
+export const isLiveDatabase = isRealSupabaseConfigured;
+
 export const supabase = {
   from(table: string) {
     if (realSupabase) {
@@ -268,5 +270,33 @@ export const supabase = {
       }
     }
     return new MockQueryBuilder(table) as any;
+  },
+  channel(name: string) {
+    if (realSupabase && typeof realSupabase.channel === 'function') {
+      try {
+        return realSupabase.channel(name);
+      } catch (e) {
+        // Fallback
+      }
+    }
+    return {
+      on(_event: string, _filter: any, callback: () => void) {
+        // Listen to window custom event for local cross-tab sync
+        const listener = () => callback();
+        window.addEventListener('socrates:db_change', listener);
+        return {
+          subscribe() {
+            return {
+              unsubscribe() {
+                window.removeEventListener('socrates:db_change', listener);
+              }
+            };
+          }
+        };
+      },
+      subscribe() {
+        return { unsubscribe() {} };
+      }
+    } as any;
   }
 };

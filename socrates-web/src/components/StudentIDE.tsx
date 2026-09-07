@@ -10,6 +10,7 @@ import { analyzeCodeComplexity, type ComplexityAnalysis } from '../lib/gemini';
 
 interface StudentIDEProps {
   onLogout?: () => void;
+  studentName?: string;
 }
 
 const QUESTIONS = [
@@ -458,7 +459,8 @@ json.dumps(results)
   }
 };
 
-export default function StudentIDE({ onLogout }: StudentIDEProps) {
+export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: StudentIDEProps) {
+  const activeStudentId = studentName || localStorage.getItem('socrates_student_name') || 'S EDWIN';
   const [questionsList] = useState<any[]>(() => {
     const custom = JSON.parse(localStorage.getItem('socrates_custom_questions') || '[]');
     return [...QUESTIONS, ...custom];
@@ -517,7 +519,7 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
         const { data } = await supabase
           .from('drafts')
           .select('code')
-          .eq('student_id', 'demo student')
+          .eq('student_id', activeStudentId)
           .eq('question_id', currentQuestion.id)
           .single();
         
@@ -560,7 +562,7 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
     debounceTimer.current = setTimeout(async () => {
       try {
         await supabase.from('drafts').upsert({
-          student_id: 'demo student',
+          student_id: activeStudentId,
           question_id: currentQuestion.id,
           code: newCode,
           updated_at: new Date().toISOString()
@@ -578,7 +580,7 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
         await supabase
           .from('drafts')
           .delete()
-          .eq('student_id', 'demo student')
+          .eq('student_id', activeStudentId)
           .eq('question_id', currentQuestion.id);
       } catch (e) {}
     }
@@ -675,7 +677,7 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            student_name: 'S EDWIN',
+            student_name: activeStudentId,
             question_title: currentQuestion.title,
             error_context: allPassed ? 'None' : 'Assertion check failed',
             misconception_tag: tag,
@@ -688,7 +690,7 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
       try {
         const { error } = await supabase.from('submissions').insert([
           {
-            student_id: 'demo student',
+            student_id: activeStudentId,
             code: currentCode || '# submitted code',
             is_successful: allPassed,
             ai_score: score,
@@ -697,6 +699,10 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
           }
         ]);
         if (error) console.error("Error saving submission:", error);
+
+        // Broadcast real-time update event for instant cross-tab sync
+        window.dispatchEvent(new CustomEvent('socrates:db_change', { detail: { table: 'submissions' } }));
+        try { localStorage.setItem('socrates_last_submission', Date.now().toString()); } catch (e) {}
       } catch (err) {
         console.error(err);
       }
@@ -730,7 +736,7 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            student_name: 'S EDWIN',
+            student_name: activeStudentId,
             question_title: currentQuestion.title,
             error_context: rawErr,
             misconception_tag: 'Syntax / Compilation Error',
@@ -742,7 +748,7 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
       try {
         await supabase.from('submissions').insert([
           {
-            student_id: 'demo student',
+            student_id: activeStudentId,
             code: currentCode || '# submitted code',
             is_successful: false,
             ai_score: 0,
@@ -750,6 +756,10 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
             debugging_trail: JSON.stringify(chatTrail)
           }
         ]);
+
+        // Broadcast real-time update event for instant cross-tab sync
+        window.dispatchEvent(new CustomEvent('socrates:db_change', { detail: { table: 'submissions' } }));
+        try { localStorage.setItem('socrates_last_submission', Date.now().toString()); } catch (e) {}
       } catch (e) {
         console.error(e);
       }
@@ -787,8 +797,11 @@ export default function StudentIDE({ onLogout }: StudentIDEProps) {
 
     try {
       const { data, error } = await supabase.from('anomalies').insert([
-        { student_id: 'demo student', reason: reason }
+        { student_id: activeStudentId, reason: reason }
       ]).select();
+      
+      window.dispatchEvent(new CustomEvent('socrates:db_change', { detail: { table: 'anomalies' } }));
+      try { localStorage.setItem('socrates_last_anomaly', Date.now().toString()); } catch (e) {}
       
       if (error) {
         alert("Supabase Insert Error: " + error.message);

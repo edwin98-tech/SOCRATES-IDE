@@ -13,7 +13,9 @@ export default function App() {
   });
 
   const [activeTab, setActiveTab] = useState<'student' | 'teacher'>('student');
-  const [username, setUsername] = useState('demo student');
+  const [username, setUsername] = useState(() => {
+    return localStorage.getItem('socrates_student_name') || 'S EDWIN';
+  });
   const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -21,7 +23,7 @@ export default function App() {
   const handleRoleTabChange = (selectedRole: 'student' | 'teacher') => {
     setActiveTab(selectedRole);
     if (selectedRole === 'student') {
-      setUsername('demo student');
+      setUsername(localStorage.getItem('socrates_student_name') || 'S EDWIN');
       setPassword('password123');
     } else {
       setUsername('demo teacher');
@@ -32,6 +34,9 @@ export default function App() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setRole(activeTab);
+    if (activeTab === 'student') {
+      localStorage.setItem('socrates_student_name', username || 'S EDWIN');
+    }
     if (rememberMe) {
       localStorage.setItem('hackathon_role', activeTab);
     }
@@ -39,6 +44,10 @@ export default function App() {
 
   const handleQuickLogin = (quickRole: 'student' | 'teacher') => {
     setRole(quickRole);
+    if (quickRole === 'student') {
+      const sName = username || 'S EDWIN';
+      localStorage.setItem('socrates_student_name', sName);
+    }
     if (rememberMe) {
       localStorage.setItem('hackathon_role', quickRole);
     }
@@ -49,7 +58,7 @@ export default function App() {
     localStorage.removeItem('hackathon_role');
   };
 
-  if (role === 'student') return <StudentIDE onLogout={handleLogout} />;
+  if (role === 'student') return <StudentIDE onLogout={handleLogout} studentName={username || 'S EDWIN'} />;
   if (role === 'teacher') return <TeacherDashboard onLogout={handleLogout} />;
 
   return (
@@ -174,9 +183,14 @@ export default function App() {
 
           {/* Form Header */}
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-white tracking-tight">
-              {activeTab === 'student' ? 'Student Sign In' : 'Educator Sign In'}
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white tracking-tight">
+                {activeTab === 'student' ? 'Student Sign In' : 'Educator Sign In'}
+              </h2>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-mono font-medium border border-blue-500/20">
+                Phase 2 Demo Mode
+              </span>
+            </div>
             <p className="text-xs text-gray-400 mt-1">
               {activeTab === 'student' 
                 ? 'Enter your student credentials or use one-click demo login.' 
