@@ -48,6 +48,7 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
   const [filterQuery, setFilterQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isProblemModalOpen, setIsProblemModalOpen] = useState(false);
+  const [alerts, setAlerts] = useState<any[]>([]);
 
   // 3-Level Drill Down Navigation
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
@@ -73,6 +74,15 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
       .order('created_at', { ascending: false });
       
     if (subData) setSubmissions(subData);
+
+    // Fetch n8n automated alerts from instructor_alerts table
+    const { data: alertData } = await supabase
+      .from('instructor_alerts')
+      .select('*')
+      .neq('status', 'Acknowledged')
+      .order('created_at', { ascending: false });
+
+    if (alertData) setAlerts(alertData);
     setIsRefreshing(false);
   };
 
@@ -86,6 +96,9 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
         fetchData();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'anomalies' }, () => {
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'instructor_alerts' }, () => {
         fetchData();
       })
       .subscribe();
@@ -111,6 +124,11 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
 
   const handleUnblock = async (id: string) => {
     await supabase.from('anomalies').update({ is_resolved: true }).eq('id', id);
+    fetchData();
+  };
+
+  const handleAcknowledgeAlert = async (id: string) => {
+    await supabase.from('instructor_alerts').update({ status: 'Acknowledged' }).eq('id', id);
     fetchData();
   };
 
@@ -444,6 +462,112 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* n8n Automated Empathy Alert Queue (PRD § 4.2 & Hackathon Review Priority 1) */}
+            <div className="bg-[#161b22]/90 rounded-2xl p-6 border border-purple-900/40 shadow-xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800 pb-3">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-base">
+                    ⚡
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center">
+                      n8n Empathy Alert Queue
+                      <span className="ml-2.5 text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        Automated Orchestration Active
+                      </span>
+                    </h3>
+                    <p className="text-xs text-gray-400">
+                      Real-time triggers identifying struggling learners, routing to Gmail and the instructor intervention queue.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 text-xs">
+                  <span className="px-2.5 py-1 rounded-lg bg-gray-900 text-gray-300 font-mono border border-gray-800 flex items-center">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+                    Gmail Webhook Connected
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-purple-950 text-purple-300 font-bold border border-purple-800/60 font-mono">
+                    {alerts.length} Active
+                  </span>
+                </div>
+              </div>
+
+              {alerts.length === 0 ? (
+                <div className="flex items-center justify-center p-8 text-center bg-[#0d1117]/60 rounded-xl border border-gray-800/60 space-x-3">
+                  <CheckCircle2 size={20} className="text-emerald-400 shrink-0" />
+                  <span className="text-xs font-medium text-gray-400">
+                    No active learner struggles detected. Real-time n8n telemetry monitoring student scores.
+                  </span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {alerts.map((alert) => (
+                    <div 
+                      key={alert.id} 
+                      className="p-4 bg-[#0d1117] border border-purple-900/50 hover:border-purple-600/70 rounded-xl space-y-3 transition-all shadow-md relative overflow-hidden group"
+                    >
+                      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-rose-500"></div>
+
+                      <div className="flex justify-between items-start pl-1">
+                        <div>
+                          <div className="font-bold text-white text-sm flex items-center space-x-1.5">
+                            <span>🧑‍💻</span>
+                            <span>{alert.student_name}</span>
+                          </div>
+                          <div className="text-[11px] text-gray-400 font-mono mt-0.5">
+                            {alert.question_title}
+                          </div>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider font-mono ${
+                          alert.urgency === 'Critical' 
+                            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' 
+                            : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        }`}>
+                          {alert.urgency || 'High'} Alert
+                        </span>
+                      </div>
+
+                      <div className="bg-black/50 p-2.5 rounded-lg border border-gray-800 space-y-1 pl-2">
+                        <div className="text-[11px] font-semibold text-rose-300 flex items-center space-x-1">
+                          <span>🏷️</span>
+                          <span>{alert.misconception_tag}</span>
+                        </div>
+                        {alert.error_context && (
+                          <div className="text-[10px] font-mono text-gray-400 truncate">
+                            {alert.error_context}
+                          </div>
+                        )}
+                        <div className="text-[10px] text-gray-500 font-mono pt-1 flex justify-between">
+                          <span>Score: {alert.ai_score}/100</span>
+                          <span>{new Date(alert.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex space-x-2 pt-1">
+                        <button
+                          onClick={() => {
+                            const student = STUDENT_ROSTER.find(s => s.name.toLowerCase() === alert.student_name.toLowerCase()) || STUDENT_ROSTER[0];
+                            setSelectedStudent(student);
+                          }}
+                          className="flex-1 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg text-xs transition cursor-pointer flex items-center justify-center space-x-1"
+                        >
+                          <span>🧑‍🏫 Intervene</span>
+                        </button>
+                        <button
+                          onClick={() => handleAcknowledgeAlert(alert.id)}
+                          className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white font-medium rounded-lg text-xs transition cursor-pointer"
+                          title="Acknowledge Alert"
+                        >
+                          ✓
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>

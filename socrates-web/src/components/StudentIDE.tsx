@@ -686,6 +686,22 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
         }).catch(() => {});
       } catch (e) {}
 
+      // If student is struggling (score < 80), push to n8n instructor alert queue
+      if (score < 80) {
+        try {
+          await supabase.from('instructor_alerts').insert([{
+            student_name: activeStudentId,
+            question_title: currentQuestion.title,
+            misconception_tag: tag,
+            ai_score: score,
+            error_context: allPassed ? 'None' : 'Assertion check failed',
+            urgency: score < 50 ? 'Critical' : 'High',
+            status: 'Action Required'
+          }]);
+          window.dispatchEvent(new CustomEvent('socrates:db_change', { detail: { table: 'instructor_alerts' } }));
+        } catch (e) {}
+      }
+
       // 2. Save submission to Supabase with Socratic debugging trail (PRD § 5.2b)
       try {
         const { error } = await supabase.from('submissions').insert([
@@ -743,6 +759,19 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
             ai_score: 0
           })
         }).catch(() => {});
+      } catch (e) {}
+
+      try {
+        await supabase.from('instructor_alerts').insert([{
+          student_name: activeStudentId,
+          question_title: currentQuestion.title,
+          misconception_tag: 'Syntax / Compilation Error',
+          ai_score: 0,
+          error_context: rawErr,
+          urgency: 'Critical',
+          status: 'Action Required'
+        }]);
+        window.dispatchEvent(new CustomEvent('socrates:db_change', { detail: { table: 'instructor_alerts' } }));
       } catch (e) {}
 
       try {
