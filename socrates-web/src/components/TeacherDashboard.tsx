@@ -4,9 +4,10 @@ import {
   CheckCircle, Flame, Users, TrendingUp, ArrowLeft,
   Award, ShieldAlert, Search, RefreshCw, 
   Code2, Clock, Sparkles, Send, CheckCircle2, ChevronRight,
-  GraduationCap
+  GraduationCap, Settings
 } from 'lucide-react';
 import ProblemCreatorModal from './ProblemCreatorModal';
+import AISettingsModal from './AISettingsModal';
 
 interface TeacherDashboardProps {
   onLogout?: () => void;
@@ -48,6 +49,7 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
   const [filterQuery, setFilterQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isProblemModalOpen, setIsProblemModalOpen] = useState(false);
+  const [isAISettingsOpen, setIsAISettingsOpen] = useState(false);
   const [alerts, setAlerts] = useState<any[]>([]);
 
   // 3-Level Drill Down Navigation
@@ -55,6 +57,8 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
   const [selectedStudent, setSelectedStudent] = useState<StudentInfo | null>(null);
   const [teacherNote, setTeacherNote] = useState<string>('');
   const [noteSent, setNoteSent] = useState<boolean>(false);
+  const [isSendingNote, setIsSendingNote] = useState<boolean>(false);
+  const [studentFeedbacks, setStudentFeedbacks] = useState<any[]>([]);
 
   const fetchData = async () => {
     setIsRefreshing(true);
@@ -83,6 +87,15 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
       .order('created_at', { ascending: false });
 
     if (alertData) setAlerts(alertData);
+
+    // Fetch teacher feedback records
+    const { data: feedbackData } = await supabase
+      .from('teacher_feedback')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (feedbackData) setStudentFeedbacks(feedbackData);
+
     setIsRefreshing(false);
   };
 
@@ -101,6 +114,9 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'instructor_alerts' }, () => {
         fetchData();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teacher_feedback' }, () => {
+        fetchData();
+      })
       .subscribe();
 
     // Cross-tab broadcast listener for instant multi-window sync
@@ -116,7 +132,7 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
 
     return () => {
       clearInterval(interval);
-      try { channel.unsubscribe(); } catch (e) {}
+      try { channel.unsubscribe(); } catch {}
       window.removeEventListener('socrates:db_change', handleDbChange);
       window.removeEventListener('storage', handleStorage);
     };
@@ -220,13 +236,43 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
     return colors[index % colors.length];
   };
 
-  const handleSendFeedback = () => {
-    if (!teacherNote.trim()) return;
-    setNoteSent(true);
-    setTimeout(() => {
-      setTeacherNote('');
-      setNoteSent(false);
-    }, 2500);
+  const handleSendFeedback = async () => {
+    if (!teacherNote.trim() || !selectedStudent) return;
+    setIsSendingNote(true);
+    try {
+      const feedbackPayload = {
+        student_id: selectedStudent.name,
+        note: teacherNote.trim(),
+        created_at: new Date().toISOString()
+      };
+
+      // Persist to Supabase teacher_feedback table
+      await supabase.from('teacher_feedback').insert([feedbackPayload]);
+
+      // Optimistic local state update
+      setStudentFeedbacks(prev => [feedbackPayload, ...prev]);
+
+      // Cross-tab and local broadcast
+      try {
+        localStorage.setItem('socrates_last_teacher_feedback', JSON.stringify({
+          ...feedbackPayload,
+          timestamp: Date.now()
+        }));
+        window.dispatchEvent(new CustomEvent('socrates:teacher_feedback_sent', { detail: feedbackPayload }));
+      } catch {
+        // Ignored
+      }
+
+      setNoteSent(true);
+      setTimeout(() => {
+        setTeacherNote('');
+        setNoteSent(false);
+      }, 3000);
+    } catch (err) {
+      console.error("Error saving teacher feedback:", err);
+    } finally {
+      setIsSendingNote(false);
+    }
   };
 
   return (
@@ -254,6 +300,14 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
           </div>
 
           <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => setIsAISettingsOpen(true)}
+              className="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-blue-400 hover:text-blue-300 font-semibold rounded-xl transition border border-gray-700 text-xs cursor-pointer flex items-center space-x-1.5 shadow-sm"
+              title="Institutional AI Gateway & Gemini API Key Settings"
+            >
+              <Settings size={14} />
+              <span>AI Gateway</span>
+            </button>
             <button 
               onClick={() => setIsProblemModalOpen(true)}
               className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition shadow-md text-xs cursor-pointer flex items-center space-x-1.5"
@@ -433,29 +487,60 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
                 </div>
               </div>
 
-              {/* Locked Accounts / Proctoring Queue */}
+              {/* Academic Integrity Signals for Instructor Review (Reviewer Priority 2 Item 5) */}
               <div className="bg-[#161b22]/90 rounded-2xl p-6 border border-gray-800 shadow-xl flex flex-col space-y-3">
-                <div className="flex items-center space-x-2 text-rose-400 font-bold text-sm border-b border-gray-800/80 pb-2">
-                  <ShieldAlert size={16} />
-                  <span>Locked Accounts ({anomalies.length})</span>
+                <div className="flex items-center justify-between border-b border-gray-800/80 pb-2">
+                  <div className="flex items-center space-x-2 text-amber-400 font-bold text-sm">
+                    <ShieldAlert size={16} />
+                    <span>Academic Integrity Signals ({anomalies.length})</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                    Review Queue
+                  </span>
                 </div>
 
                 {anomalies.length === 0 ? (
                   <div className="flex-grow flex flex-col items-center justify-center text-center p-6 space-y-2">
                     <CheckCircle size={24} className="text-emerald-400" />
-                    <div className="text-xs font-bold text-gray-300">All accounts in good standing.</div>
+                    <div className="text-xs font-bold text-gray-300">All student sessions in good standing.</div>
+                    <div className="text-[11px] text-gray-500">No anomalous paste or window focus signals pending review.</div>
                   </div>
                 ) : (
                   <div className="space-y-3 overflow-y-auto max-h-72">
                     {anomalies.map((anom) => (
-                      <div key={anom.id} className="p-3 bg-[#0d1117] border border-rose-900/50 rounded-xl space-y-2">
-                        <div className="font-bold text-rose-300 text-xs">{anom.student_id}</div>
-                        <p className="text-[11px] text-gray-300">{anom.reason}</p>
+                      <div key={anom.id} className="p-3.5 bg-[#0d1117] border border-amber-900/40 rounded-xl space-y-2.5">
+                        <div className="flex justify-between items-start">
+                          <div className="font-bold text-white text-xs flex items-center space-x-1.5">
+                            <span>🧑‍💻</span>
+                            <span>{anom.student_id}</span>
+                          </div>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800/60 font-medium">
+                            Flagged Signal
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-gray-300 font-mono bg-black/40 p-2 rounded border border-gray-800">
+                          {anom.reason}
+                        </p>
+
+                        {/* Student Self-Appeal Note (Requested by Reviewer) */}
+                        {anom.appeal_note && (
+                          <div className="bg-amber-950/20 p-2.5 rounded-lg border border-amber-500/30 space-y-1">
+                            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center space-x-1">
+                              <span>📝</span>
+                              <span>Student Self-Appeal:</span>
+                            </span>
+                            <p className="text-[11px] text-gray-200 italic font-sans leading-relaxed">
+                              "{anom.appeal_note}"
+                            </p>
+                          </div>
+                        )}
+
                         <button 
                           onClick={() => handleUnblock(anom.id)}
-                          className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[11px] transition cursor-pointer"
+                          className="w-full py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-[11px] transition cursor-pointer flex items-center justify-center space-x-1.5 shadow-sm"
                         >
-                          Approve & Unlock
+                          <span>✓ Review & Clear Flag</span>
                         </button>
                       </div>
                     ))}
@@ -841,7 +926,7 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
                           if (sub.debugging_trail) {
                             trail = typeof sub.debugging_trail === 'string' ? JSON.parse(sub.debugging_trail) : sub.debugging_trail;
                           }
-                        } catch (e) {
+                        } catch {
                           trail = [];
                         }
 
@@ -938,12 +1023,41 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
 
                   <button
                     onClick={handleSendFeedback}
-                    disabled={!teacherNote.trim()}
+                    disabled={!teacherNote.trim() || isSendingNote}
                     className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center space-x-2 shadow-md"
                   >
                     <Send size={13} />
-                    <span>{noteSent ? "Feedback Sent Successfully! ✅" : "Send Feedback to Student"}</span>
+                    <span>{isSendingNote ? "Delivering..." : noteSent ? "Feedback Sent Successfully! ✅" : "Send Feedback to Student"}</span>
                   </button>
+
+                  {/* Delivered Feedback History */}
+                  {(() => {
+                    const studentNotes = studentFeedbacks.filter(f => {
+                      const sId = (f.student_id || '').toLowerCase();
+                      const target = selectedStudent.name.toLowerCase();
+                      return sId === target || (target === 's edwin' && (sId === 'demo student' || sId === 's edwin'));
+                    });
+                    if (studentNotes.length === 0) return null;
+                    return (
+                      <div className="pt-3 border-t border-gray-800 space-y-2">
+                        <div className="text-[11px] font-bold text-gray-400 flex items-center justify-between">
+                          <span>Delivered Feedback History</span>
+                          <span className="text-[10px] text-gray-500 font-mono">{studentNotes.length} notes</span>
+                        </div>
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                          {studentNotes.map((f: any, fIdx: number) => (
+                            <div key={f.id || fIdx} className="bg-[#0d1117] p-2.5 rounded-lg border border-gray-800 text-[11px] space-y-1">
+                              <div className="flex justify-between text-[10px] text-gray-500 font-mono">
+                                <span className="text-purple-400 font-medium">Instructor Note</span>
+                                <span>{new Date(f.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                              <p className="text-gray-300 leading-relaxed font-sans">{f.note}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -959,6 +1073,12 @@ export default function TeacherDashboard({ onLogout }: TeacherDashboardProps) {
         isOpen={isProblemModalOpen} 
         onClose={() => setIsProblemModalOpen(false)} 
         onProblemCreated={fetchData}
+      />
+
+      {/* Institutional AI Gateway Modal */}
+      <AISettingsModal 
+        isOpen={isAISettingsOpen} 
+        onClose={() => setIsAISettingsOpen(false)} 
       />
     </div>
   );

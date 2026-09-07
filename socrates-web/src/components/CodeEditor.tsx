@@ -4,10 +4,11 @@ import Editor from '@monaco-editor/react';
 interface CodeEditorProps {
   code: string;
   onLockAccount: (reason: string) => void;
+  onWarning?: (msg: string) => void;
   onChange?: (code: string) => void;
 }
 
-export default function CodeEditor({ code, onLockAccount, onChange }: CodeEditorProps) {
+export default function CodeEditor({ code, onLockAccount, onWarning, onChange }: CodeEditorProps) {
   const internalClipboard = useRef<string>('');
   const lastKeyTime = useRef<number>(Date.now());
   const fastKeyCount = useRef<number>(0);
@@ -23,7 +24,7 @@ export default function CodeEditor({ code, onLockAccount, onChange }: CodeEditor
       }
     });
 
-    // 2. Feature 5a: Block External Pastes entirely
+    // 2. Feature 5a: Block External Pastes gracefully
     const domNode = editor.getContainerDomNode();
     if (domNode) {
       domNode.addEventListener('paste', (e: ClipboardEvent) => {
@@ -31,14 +32,16 @@ export default function CodeEditor({ code, onLockAccount, onChange }: CodeEditor
         
         // If it's a large paste and doesn't match what they copied from inside the editor
         if (pastedText.length > 10 && pastedText !== internalClipboard.current) {
-          e.preventDefault(); // STOP the paste from entering the editor
+          e.preventDefault(); // Prevent direct clipboard insertion
           e.stopPropagation();
           
           anomalyStrikes.current += 1;
-          if (anomalyStrikes.current === 1) {
-             alert('⚠️ PROCTORING ALERT: Pasting code from external sources is disabled.');
+          if (anomalyStrikes.current <= 2) {
+             if (onWarning) {
+               onWarning('⚠️ Academic Integrity Signal: External code paste blocked. Repeated attempts will be flagged for instructor review.');
+             }
           } else {
-             onLockAccount('Repeated attempts to bypass paste blocker.');
+             onLockAccount('Multiple external paste attempts flagged for instructor review.');
           }
         }
       }, true);
@@ -49,29 +52,30 @@ export default function CodeEditor({ code, onLockAccount, onChange }: CodeEditor
     if (value === undefined) return;
     if (onChange) onChange(value);
 
-    // Feature 5b: Auto-Typing Script (Macro) Detection
+    // Feature 5b: Rapid Text Insertion / Macro Signal Detection
     const now = Date.now();
     const timeDiff = now - lastKeyTime.current;
     
     // Only check single-character typing (not pastes or backspaces)
     if (ev.changes && ev.changes.length > 0 && ev.changes[0].text.length === 1) {
-      // Less than 35ms between keys is insanely fast (~30+ chars/sec)
-      if (timeDiff > 0 && timeDiff < 35) { 
+      // Less than 30ms between keys is unusually fast
+      if (timeDiff > 0 && timeDiff < 30) { 
         fastKeyCount.current += 1;
         
-        // If they sustain inhuman speed for 15 consecutive characters, it's a macro script
-        if (fastKeyCount.current > 15) {
+        // If sustained for 25+ consecutive characters without pauses
+        if (fastKeyCount.current > 25) {
            anomalyStrikes.current += 1;
            fastKeyCount.current = 0; // reset
            
-           if (anomalyStrikes.current === 1) {
-              alert('⚠️ PROCTORING ALERT: Unnatural typing speed detected. Auto-typing scripts are prohibited.');
+           if (anomalyStrikes.current <= 2) {
+              if (onWarning) {
+                onWarning('⚠️ Academic Integrity Signal: Unusually high typing velocity detected. Ensure code is written directly.');
+              }
            } else {
-              onLockAccount('Auto-Typing Macro Script Detected.');
+              onLockAccount('Sustained rapid text insertion signal flagged for instructor review.');
            }
         }
-      } else if (timeDiff >= 35) {
-        // Normal human pause between keys, reset the macro counter
+      } else if (timeDiff >= 30) {
         fastKeyCount.current = 0;
       }
     }

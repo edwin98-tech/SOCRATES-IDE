@@ -14,13 +14,20 @@ export default function ProblemCreatorModal({ isOpen, onClose, onProblemCreated 
   const [description, setDescription] = useState('');
   const [defaultCode, setDefaultCode] = useState('def solution(arr):\n    # Write your solution here\n    pass\n');
   const [sampleCases, setSampleCases] = useState('Input: [1, 2, 3]\nExpected Output: [3, 2, 1]');
-  const [testHarness, setTestHarness] = useState(`
-# Test Harness (Hidden assertions)
+  const [testHarness, setTestHarness] = useState(`import json
+results = []
 try:
-    assert solution([1, 2, 3]) == [3, 2, 1], "Failed on simple array"
-    print("ALL_PASSED")
+    # Test Case 1 (Visible)
+    res1 = solution([1, 2, 3])
+    results.append({"id": 1, "name": "Test Case 1 (Visible): solution([1, 2, 3])", "isShown": True, "passed": res1 == [3, 2, 1], "expected": "[3, 2, 1]", "actual": str(res1)})
+    
+    # Test Case 2 (Hidden Edge Case)
+    res2 = solution([])
+    results.append({"id": 2, "name": "Test Case 2 (Hidden): solution([])", "isShown": False, "passed": res2 == [], "expected": "[]", "actual": str(res2)})
 except Exception as e:
-    print(f"FAILED: {e}")
+    results.append({"id": 1, "name": "Execution Error", "isShown": True, "passed": False, "expected": "Clean run", "actual": str(e)})
+
+json.dumps(results)
 `);
   const [isSaving, setIsSaving] = useState(false);
 

@@ -41,7 +41,9 @@ export default function SocraticChat({
           return parsed;
         }
       }
-    } catch (e) {}
+    } catch {
+      // Ignored
+    }
     // Default to left pane position
     return { x: 28, y: 120 };
   });
@@ -187,7 +189,9 @@ export default function SocraticChat({
         setPosition(newPos);
         try {
           localStorage.setItem('socrates_owl_position', JSON.stringify(newPos));
-        } catch (e) {}
+        } catch {
+          // Ignored
+        }
         setTimeout(() => {
           isDraggingRef.current = false;
         }, 150);

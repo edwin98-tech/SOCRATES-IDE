@@ -29,7 +29,7 @@ export default function AISettingsModal({ isOpen, onClose }: AISettingsModalProp
     if (stored) {
       try {
         setKeysList(JSON.parse(stored));
-      } catch (e) {
+      } catch {
         setKeysList([]);
       }
     } else {
@@ -127,8 +127,13 @@ export default function AISettingsModal({ isOpen, onClose }: AISettingsModalProp
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-start justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">AI Mentor Settings</h2>
-            <p className="text-xs text-gray-500 mt-1">Manage your Gemini API keys and personalize your tutoring experience.</p>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-xl font-bold text-gray-900">Institutional AI Gateway</h2>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold border border-blue-200">
+                Educator / Admin
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Configure institutional Gemini API credentials, models, and pedagogical guardrails. Students receive AI access automatically without configuring personal keys.</p>
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition">
             <X size={18} />
@@ -308,11 +313,22 @@ export default function AISettingsModal({ isOpen, onClose }: AISettingsModalProp
 
           {activeTab === 'usage' && (
             <div className="text-xs text-gray-600 space-y-4">
-              <h3 className="font-semibold text-sm text-gray-900">API Usage & Rate Limits</h3>
-              <p>Monitor your token consumption across Gemini requests.</p>
+              <h3 className="font-semibold text-sm text-gray-900">API Usage & Production Architecture</h3>
+              <p>Monitor your token consumption and institutional deployment model.</p>
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-1">
-                <div className="text-gray-500">Active Model:</div>
-                <div className="font-mono font-bold text-gray-900">gemini-2.5-flash</div>
+                <div className="text-gray-500">Active Inference Model:</div>
+                <div className="font-mono font-bold text-gray-900">
+                  {localStorage.getItem('socrates_active_gemini_model') || 'gemini-2.0-flash'}
+                </div>
+              </div>
+              <div className="bg-blue-50/70 p-4 rounded-xl border border-blue-200/60 text-blue-900 space-y-1.5">
+                <div className="font-bold text-xs flex items-center">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 mr-2"></span>
+                  Institutional Deployment Roadmap
+                </div>
+                <p className="text-[11px] text-blue-800 leading-relaxed">
+                  In this hackathon MVP, client-side API configuration enables immediate evaluation and local testing. In institutional production, student traffic routes through Supabase Edge Functions with server-side secret management, strict rate-limiting, and student audit logging.
+                </p>
               </div>
             </div>
           )}

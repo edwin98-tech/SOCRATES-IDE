@@ -5,7 +5,7 @@ import SocraticChat from './SocraticChat';
 import SuspendedScreen from './SuspendedScreen';
 import AISettingsModal from './AISettingsModal';
 import { supabase } from '../lib/supabaseClient';
-import { ChevronLeft, ChevronRight, RotateCcw, Play, CheckCircle2, Settings, BookOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw, Play, CheckCircle2, BookOpen } from 'lucide-react';
 import { analyzeCodeComplexity, type ComplexityAnalysis } from '../lib/gemini';
 
 interface StudentIDEProps {
@@ -210,7 +210,8 @@ main()`,
   }
 ];
 
-const getTestHarnessForQuestion = (qId: string) => {
+const getTestHarnessForQuestion = (questionOrId: any) => {
+  const qId = typeof questionOrId === 'string' ? questionOrId : questionOrId?.id;
   switch (qId) {
     case "1.2.1":
       return `
@@ -218,31 +219,50 @@ import sys, io, json
 results = []
 try:
     if 'display_array' in globals() and callable(display_array):
-        buf = io.StringIO()
+        # Test 1 (Shown): Exact output match
+        buf1 = io.StringIO()
         old_stdout = sys.stdout
-        sys.stdout = buf
+        sys.stdout = buf1
         try:
             display_array([10, 20, 30])
         finally:
             sys.stdout = old_stdout
-        out = buf.getvalue().strip()
-        if "10" in out and "20" in out and "30" in out:
-            results.append({"id": 1, "name": "Test Case 1 (Shown): display_array([10, 20, 30])", "isShown": True, "passed": True, "expected": "10 20 30", "actual": out})
-        else:
-            results.append({"id": 1, "name": "Test Case 1 (Shown): display_array([10, 20, 30])", "isShown": True, "passed": False, "expected": "Output containing 10 20 30", "actual": out or "(No output printed)"})
-        
+        out1 = buf1.getvalue().strip()
+        p1 = (out1 == "10 20 30")
+        results.append({"id": 1, "name": "Test Case 1 (Shown): display_array([10, 20, 30])", "isShown": True, "passed": p1, "expected": "10 20 30", "actual": out1 or "(No output)"})
+
+        # Test 2 (Hidden): Exact output match
         buf2 = io.StringIO()
-        old_stdout = sys.stdout
         sys.stdout = buf2
         try:
             display_array([5, 15, 25, 35])
         finally:
             sys.stdout = old_stdout
         out2 = buf2.getvalue().strip()
-        if "5" in out2 and "35" in out2:
-            results.append({"id": 2, "name": "Test Case 2 (Hidden): display_array([5, 15, 25, 35])", "isShown": False, "passed": True, "expected": "5 15 25 35", "actual": out2})
-        else:
-            results.append({"id": 2, "name": "Test Case 2 (Hidden): display_array([5, 15, 25, 35])", "isShown": False, "passed": False, "expected": "5 15 25 35", "actual": out2 or "(No output printed)"})
+        p2 = (out2 == "5 15 25 35")
+        results.append({"id": 2, "name": "Test Case 2 (Hidden): display_array([5, 15, 25, 35])", "isShown": False, "passed": p2, "expected": "5 15 25 35", "actual": out2 or "(No output)"})
+
+        # Test 3 (Hidden Edge Case: Empty Array)
+        buf3 = io.StringIO()
+        sys.stdout = buf3
+        try:
+            display_array([])
+        finally:
+            sys.stdout = old_stdout
+        out3 = buf3.getvalue().strip()
+        p3 = (out3 == "")
+        results.append({"id": 3, "name": "Test Case 3 (Hidden Edge Case): display_array([])", "isShown": False, "passed": p3, "expected": "(Empty string)", "actual": out3 if out3 else "(Empty string)"})
+
+        # Test 4 (Hidden Edge Case: Single Element)
+        buf4 = io.StringIO()
+        sys.stdout = buf4
+        try:
+            display_array([42])
+        finally:
+            sys.stdout = old_stdout
+        out4 = buf4.getvalue().strip()
+        p4 = (out4 == "42")
+        results.append({"id": 4, "name": "Test Case 4 (Hidden Edge Case): display_array([42])", "isShown": False, "passed": p4, "expected": "42", "actual": out4 or "(No output)"})
     else:
         results.append({"id": 1, "name": "Test Case 1 (Shown): display_array definition", "isShown": True, "passed": False, "expected": "def display_array(arr)", "actual": "Function not found"})
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Execution", "isShown": False, "passed": False, "expected": "Valid output", "actual": "Blocked"})
@@ -258,10 +278,25 @@ import json
 results = []
 try:
     if 'linear_search' in globals() and callable(linear_search):
+        # Test 1 (Shown)
         ans1 = linear_search([10, 20, 30, 40, 50], 30)
-        ans2 = linear_search([10, 20, 30, 40, 50], 99)
         results.append({"id": 1, "name": "Test Case 1 (Shown): linear_search([10, 20, 30, 40, 50], 30)", "isShown": True, "passed": ans1 == 2, "expected": "2", "actual": str(ans1)})
+
+        # Test 2 (Hidden: Element Not Found)
+        ans2 = linear_search([10, 20, 30, 40, 50], 99)
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Element Not Found (target=99)", "isShown": False, "passed": ans2 == -1, "expected": "-1", "actual": str(ans2)})
+
+        # Test 3 (Hidden Edge Case: First Element)
+        ans3 = linear_search([10, 20, 30], 10)
+        results.append({"id": 3, "name": "Test Case 3 (Hidden Edge Case): First Element (target=10)", "isShown": False, "passed": ans3 == 0, "expected": "0", "actual": str(ans3)})
+
+        # Test 4 (Hidden Edge Case: Last Element)
+        ans4 = linear_search([10, 20, 30], 30)
+        results.append({"id": 4, "name": "Test Case 4 (Hidden Edge Case): Last Element (target=30)", "isShown": False, "passed": ans4 == 2, "expected": "2", "actual": str(ans4)})
+
+        # Test 5 (Hidden Edge Case: Empty Array)
+        ans5 = linear_search([], 5)
+        results.append({"id": 5, "name": "Test Case 5 (Hidden Edge Case): Empty Array linear_search([], 5)", "isShown": False, "passed": ans5 == -1, "expected": "-1", "actual": str(ans5)})
     else:
         results.append({"id": 1, "name": "Test Case 1 (Shown): linear_search definition", "isShown": True, "passed": False, "expected": "def linear_search(arr, target)", "actual": "Function not found"})
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Search Verification", "isShown": False, "passed": False, "expected": "-1", "actual": "Blocked"})
@@ -277,15 +312,29 @@ import json
 results = []
 try:
     if 'reverse_array' in globals() and callable(reverse_array):
+        # Test 1 (Shown)
         t1 = [1, 2, 3, 4, 5]
         reverse_array(t1)
         p1 = (t1 == [5, 4, 3, 2, 1])
         results.append({"id": 1, "name": "Test Case 1 (Shown): reverse_array([1, 2, 3, 4, 5])", "isShown": True, "passed": p1, "expected": "[5, 4, 3, 2, 1]", "actual": str(t1)})
         
+        # Test 2 (Hidden: Even Length Array)
         t2 = [10, 20]
         reverse_array(t2)
         p2 = (t2 == [20, 10])
-        results.append({"id": 2, "name": "Test Case 2 (Hidden): Even Length Array [10, 20]", "isShown": False, "passed": p2, "expected": "[20, 10]", "actual": str(t2)})
+        results.append({"id": 2, "name": "Test Case 2 (Hidden): Even Length [10, 20]", "isShown": False, "passed": p2, "expected": "[20, 10]", "actual": str(t2)})
+
+        # Test 3 (Hidden Edge Case: Single Element)
+        t3 = [1]
+        reverse_array(t3)
+        p3 = (t3 == [1])
+        results.append({"id": 3, "name": "Test Case 3 (Hidden Edge Case): Single Element [1]", "isShown": False, "passed": p3, "expected": "[1]", "actual": str(t3)})
+
+        # Test 4 (Hidden Edge Case: Empty Array)
+        t4 = []
+        reverse_array(t4)
+        p4 = (t4 == [])
+        results.append({"id": 4, "name": "Test Case 4 (Hidden Edge Case): Empty Array []", "isShown": False, "passed": p4, "expected": "[]", "actual": str(t4)})
     else:
         results.append({"id": 1, "name": "Test Case 1 (Shown): reverse_array definition", "isShown": True, "passed": False, "expected": "def reverse_array(arr)", "actual": "Function not found"})
         results.append({"id": 2, "name": "Test Case 2 (Hidden): In-place reverse", "isShown": False, "passed": False, "expected": "[20, 10]", "actual": "Blocked"})
@@ -301,13 +350,25 @@ import json
 results = []
 try:
     if 'two_sum' in globals() and callable(two_sum):
+        # Test 1 (Shown)
         res1 = two_sum([2, 7, 11, 15], 9)
         p1 = sorted(res1) == [0, 1] if res1 else False
         results.append({"id": 1, "name": "Test Case 1 (Shown): two_sum([2, 7, 11, 15], 9)", "isShown": True, "passed": p1, "expected": "[0, 1]", "actual": str(res1)})
         
+        # Test 2 (Hidden)
         res2 = two_sum([3, 2, 4], 6)
         p2 = sorted(res2) == [1, 2] if res2 else False
         results.append({"id": 2, "name": "Test Case 2 (Hidden): two_sum([3, 2, 4], 6)", "isShown": False, "passed": p2, "expected": "[1, 2]", "actual": str(res2)})
+
+        # Test 3 (Hidden Edge Case: Duplicate Elements)
+        res3 = two_sum([3, 3], 6)
+        p3 = sorted(res3) == [0, 1] if res3 else False
+        results.append({"id": 3, "name": "Test Case 3 (Hidden Edge Case): Duplicates two_sum([3, 3], 6)", "isShown": False, "passed": p3, "expected": "[0, 1]", "actual": str(res3)})
+
+        # Test 4 (Hidden Edge Case: No Solution Case)
+        res4 = two_sum([1, 2, 3], 10)
+        p4 = (res4 is None or res4 == [] or res4 == [-1, -1])
+        results.append({"id": 4, "name": "Test Case 4 (Hidden Edge Case): No Solution two_sum([1, 2, 3], 10)", "isShown": False, "passed": p4, "expected": "None or []", "actual": str(res4)})
     else:
         results.append({"id": 1, "name": "Test Case 1 (Shown): two_sum definition", "isShown": True, "passed": False, "expected": "def two_sum(nums, target)", "actual": "Function not found"})
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Two Sum Logic", "isShown": False, "passed": False, "expected": "[1, 2]", "actual": "Blocked"})
@@ -323,13 +384,25 @@ import json
 results = []
 try:
     if 'find_min_max' in globals() and callable(find_min_max):
+        # Test 1 (Shown)
         res1 = find_min_max([3, 1, 9, 7, 5])
         p1 = tuple(res1) == (1, 9) if res1 else False
         results.append({"id": 1, "name": "Test Case 1 (Shown): find_min_max([3, 1, 9, 7, 5])", "isShown": True, "passed": p1, "expected": "(1, 9)", "actual": str(res1)})
         
+        # Test 2 (Hidden: Single Element)
         res2 = find_min_max([42])
         p2 = tuple(res2) == (42, 42) if res2 else False
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Single Element [42]", "isShown": False, "passed": p2, "expected": "(42, 42)", "actual": str(res2)})
+
+        # Test 3 (Hidden Edge Case: All Negative Numbers)
+        res3 = find_min_max([-10, -3, -50, -1])
+        p3 = tuple(res3) == (-50, -1) if res3 else False
+        results.append({"id": 3, "name": "Test Case 3 (Hidden Edge Case): Negative Numbers [-10, -3, -50, -1]", "isShown": False, "passed": p3, "expected": "(-50, -1)", "actual": str(res3)})
+
+        # Test 4 (Hidden Edge Case: All Identical Numbers)
+        res4 = find_min_max([5, 5, 5, 5])
+        p4 = tuple(res4) == (5, 5) if res4 else False
+        results.append({"id": 4, "name": "Test Case 4 (Hidden Edge Case): Identical Elements [5, 5, 5, 5]", "isShown": False, "passed": p4, "expected": "(5, 5)", "actual": str(res4)})
     else:
         results.append({"id": 1, "name": "Test Case 1 (Shown): find_min_max definition", "isShown": True, "passed": False, "expected": "def find_min_max(arr)", "actual": "Function not found"})
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Min/Max", "isShown": False, "passed": False, "expected": "(42, 42)", "actual": "Blocked"})
@@ -345,11 +418,25 @@ import json
 results = []
 try:
     if 'binary_search' in globals() and callable(binary_search):
+        # Test 1 (Shown)
         res1 = binary_search([2, 4, 6, 8, 10, 12], 8)
         results.append({"id": 1, "name": "Test Case 1 (Shown): binary_search([2, 4, 6, 8, 10, 12], 8)", "isShown": True, "passed": res1 == 3, "expected": "3", "actual": str(res1)})
         
-        res2 = binary_search([1, 5, 9, 13], 4)
-        results.append({"id": 2, "name": "Test Case 2 (Hidden): Element Not Present (target=4)", "isShown": False, "passed": res2 == -1, "expected": "-1", "actual": str(res2)})
+        # Test 2 (Hidden: First Element)
+        res2 = binary_search([2, 4, 6, 8, 10, 12], 2)
+        results.append({"id": 2, "name": "Test Case 2 (Hidden): First Element (target=2)", "isShown": False, "passed": res2 == 0, "expected": "0", "actual": str(res2)})
+
+        # Test 3 (Hidden: Last Element)
+        res3 = binary_search([2, 4, 6, 8, 10, 12], 12)
+        results.append({"id": 3, "name": "Test Case 3 (Hidden): Last Element (target=12)", "isShown": False, "passed": res3 == 5, "expected": "5", "actual": str(res3)})
+
+        # Test 4 (Hidden Edge Case: Missing Target)
+        res4 = binary_search([1, 5, 9, 13], 4)
+        results.append({"id": 4, "name": "Test Case 4 (Hidden Edge Case): Missing Target (target=4)", "isShown": False, "passed": res4 == -1, "expected": "-1", "actual": str(res4)})
+
+        # Test 5 (Hidden Edge Case: Empty Array)
+        res5 = binary_search([], 5)
+        results.append({"id": 5, "name": "Test Case 5 (Hidden Edge Case): Empty Array binary_search([], 5)", "isShown": False, "passed": res5 == -1, "expected": "-1", "actual": str(res5)})
     else:
         results.append({"id": 1, "name": "Test Case 1 (Shown): binary_search definition", "isShown": True, "passed": False, "expected": "def binary_search(arr, target)", "actual": "Function not found"})
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Binary Search", "isShown": False, "passed": False, "expected": "-1", "actual": "Blocked"})
@@ -365,11 +452,27 @@ import json
 results = []
 try:
     if 'is_palindrome' in globals() and callable(is_palindrome):
+        # Test 1 (Shown)
         res1 = is_palindrome("racecar")
         results.append({"id": 1, "name": "Test Case 1 (Shown): is_palindrome('racecar')", "isShown": True, "passed": res1 is True, "expected": "True", "actual": str(res1)})
         
+        # Test 2 (Hidden: Non-palindrome)
         res2 = is_palindrome("socrates")
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Non-palindrome 'socrates'", "isShown": False, "passed": res2 is False, "expected": "False", "actual": str(res2)})
+
+        # Test 3 (Hidden Edge Case: Punctuation & Case-Insensitivity)
+        res3 = is_palindrome("Madam, I'm Adam")
+        results.append({"id": 3, "name": "Test Case 3 (Hidden Edge Case): Punctuation/Case 'Madam, I\\'m Adam'", "isShown": False, "passed": res3 is True, "expected": "True", "actual": str(res3)})
+
+        # Test 4 (Hidden Edge Case: Mixed Case Alphanumeric)
+        res4 = is_palindrome("Was it a car or a cat I saw?")
+        results.append({"id": 4, "name": "Test Case 4 (Hidden Edge Case): Sentence 'Was it a car or a cat I saw?'", "isShown": False, "passed": res4 is True, "expected": "True", "actual": str(res4)})
+
+        # Test 5 (Hidden Edge Case: Single Char & Empty String)
+        res5a = is_palindrome("a")
+        res5b = is_palindrome("")
+        p5 = (res5a is True and res5b is True)
+        results.append({"id": 5, "name": "Test Case 5 (Hidden Edge Case): Single char ('a') and Empty string ('')", "isShown": False, "passed": p5, "expected": "True", "actual": f"'a': {res5a}, '': {res5b}"})
     else:
         results.append({"id": 1, "name": "Test Case 1 (Shown): is_palindrome definition", "isShown": True, "passed": False, "expected": "def is_palindrome(s)", "actual": "Function not found"})
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Palindrome Logic", "isShown": False, "passed": False, "expected": "False", "actual": "Blocked"})
@@ -385,11 +488,25 @@ import json
 results = []
 try:
     if 'is_valid_parentheses' in globals() and callable(is_valid_parentheses):
+        # Test 1 (Shown)
         res1 = is_valid_parentheses("()[]{}")
         results.append({"id": 1, "name": "Test Case 1 (Shown): is_valid_parentheses('()[]{}')", "isShown": True, "passed": res1 is True, "expected": "True", "actual": str(res1)})
         
+        # Test 2 (Hidden: Mismatched Closing)
         res2 = is_valid_parentheses("(]")
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Invalid '(]'", "isShown": False, "passed": res2 is False, "expected": "False", "actual": str(res2)})
+
+        # Test 3 (Hidden Edge Case: Interleaved / Wrong Ordering)
+        res3 = is_valid_parentheses("([)]")
+        results.append({"id": 3, "name": "Test Case 3 (Hidden Edge Case): Interleaved '([)]'", "isShown": False, "passed": res3 is False, "expected": "False", "actual": str(res3)})
+
+        # Test 4 (Hidden Edge Case: Unclosed Opening Bracket)
+        res4 = is_valid_parentheses("(")
+        results.append({"id": 4, "name": "Test Case 4 (Hidden Edge Case): Unclosed Opening '('", "isShown": False, "passed": res4 is False, "expected": "False", "actual": str(res4)})
+
+        # Test 5 (Hidden Edge Case: Empty String)
+        res5 = is_valid_parentheses("")
+        results.append({"id": 5, "name": "Test Case 5 (Hidden Edge Case): Empty String ''", "isShown": False, "passed": res5 is True, "expected": "True", "actual": str(res5)})
     else:
         results.append({"id": 1, "name": "Test Case 1 (Shown): is_valid_parentheses definition", "isShown": True, "passed": False, "expected": "def is_valid_parentheses(s)", "actual": "Function not found"})
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Parentheses Stack", "isShown": False, "passed": False, "expected": "False", "actual": "Blocked"})
@@ -405,15 +522,31 @@ import json
 results = []
 try:
     if 'bubble_sort' in globals() and callable(bubble_sort):
+        # Test 1 (Shown)
         arr1 = [64, 34, 25, 12, 22, 11, 90]
         bubble_sort(arr1)
         p1 = (arr1 == [11, 12, 22, 25, 34, 64, 90])
         results.append({"id": 1, "name": "Test Case 1 (Shown): bubble_sort([64, 34, 25, 12, 22, 11, 90])", "isShown": True, "passed": p1, "expected": "[11, 12, 22, 25, 34, 64, 90]", "actual": str(arr1)})
         
-        arr2 = [5, 1, 4, 2, 8]
+        # Test 2 (Hidden: Already Sorted)
+        arr2 = [1, 2, 3, 4, 5]
         bubble_sort(arr2)
-        p2 = (arr2 == [1, 2, 4, 5, 8])
-        results.append({"id": 2, "name": "Test Case 2 (Hidden): bubble_sort([5, 1, 4, 2, 8])", "isShown": False, "passed": p2, "expected": "[1, 2, 4, 5, 8]", "actual": str(arr2)})
+        p2 = (arr2 == [1, 2, 3, 4, 5])
+        results.append({"id": 2, "name": "Test Case 2 (Hidden): Already Sorted [1, 2, 3, 4, 5]", "isShown": False, "passed": p2, "expected": "[1, 2, 3, 4, 5]", "actual": str(arr2)})
+
+        # Test 3 (Hidden Edge Case: Duplicate Elements)
+        arr3 = [4, 2, 4, 1, 4]
+        bubble_sort(arr3)
+        p3 = (arr3 == [1, 2, 4, 4, 4])
+        results.append({"id": 3, "name": "Test Case 3 (Hidden Edge Case): Duplicates [4, 2, 4, 1, 4]", "isShown": False, "passed": p3, "expected": "[1, 2, 4, 4, 4]", "actual": str(arr3)})
+
+        # Test 4 (Hidden Edge Case: Single Element & Empty List)
+        arr4a = [42]
+        bubble_sort(arr4a)
+        arr4b = []
+        bubble_sort(arr4b)
+        p4 = (arr4a == [42] and arr4b == [])
+        results.append({"id": 4, "name": "Test Case 4 (Hidden Edge Case): Single element [42] and Empty array []", "isShown": False, "passed": p4, "expected": "[42] and []", "actual": f"{arr4a} and {arr4b}"})
     else:
         results.append({"id": 1, "name": "Test Case 1 (Shown): bubble_sort definition", "isShown": True, "passed": False, "expected": "def bubble_sort(arr)", "actual": "Function not found"})
         results.append({"id": 2, "name": "Test Case 2 (Hidden): Sorting Verification", "isShown": False, "passed": False, "expected": "[1, 2, 4, 5, 8]", "actual": "Blocked"})
@@ -429,15 +562,35 @@ import json
 results = []
 try:
     if 'remove_duplicates' in globals() and callable(remove_duplicates):
+        # Test 1 (Shown)
         n1 = [1, 1, 2]
         k1 = remove_duplicates(n1)
         p1 = (k1 == 2 and n1[:2] == [1, 2])
         results.append({"id": 1, "name": "Test Case 1 (Shown): remove_duplicates([1, 1, 2])", "isShown": True, "passed": p1, "expected": "k=2, nums=[1, 2]", "actual": f"k={k1}, nums={n1[:k1] if k1 else []}"})
         
+        # Test 2 (Hidden)
         n2 = [0, 0, 1, 1, 1, 2, 2, 3, 3, 4]
         k2 = remove_duplicates(n2)
         p2 = (k2 == 5 and n2[:5] == [0, 1, 2, 3, 4])
         results.append({"id": 2, "name": "Test Case 2 (Hidden): remove_duplicates([0, 0, 1, 1, 1, 2, 2, 3, 3, 4])", "isShown": False, "passed": p2, "expected": "k=5, nums=[0, 1, 2, 3, 4]", "actual": f"k={k2}, nums={n2[:k2] if k2 else []}"})
+
+        # Test 3 (Hidden Edge Case: All Identical Elements)
+        n3 = [7, 7, 7, 7]
+        k3 = remove_duplicates(n3)
+        p3 = (k3 == 1 and n3[:1] == [7])
+        results.append({"id": 3, "name": "Test Case 3 (Hidden Edge Case): Identical elements [7, 7, 7, 7]", "isShown": False, "passed": p3, "expected": "k=1, nums=[7]", "actual": f"k={k3}, nums={n3[:k3] if k3 else []}"})
+
+        # Test 4 (Hidden Edge Case: Already Distinct Array)
+        n4 = [1, 2, 3, 4]
+        k4 = remove_duplicates(n4)
+        p4 = (k4 == 4 and n4[:4] == [1, 2, 3, 4])
+        results.append({"id": 4, "name": "Test Case 4 (Hidden Edge Case): Already Distinct [1, 2, 3, 4]", "isShown": False, "passed": p4, "expected": "k=4, nums=[1, 2, 3, 4]", "actual": f"k={k4}, nums={n4[:k4] if k4 else []}"})
+
+        # Test 5 (Hidden Edge Case: Empty Array)
+        n5 = []
+        k5 = remove_duplicates(n5)
+        p5 = (k5 == 0 and n5 == [])
+        results.append({"id": 5, "name": "Test Case 5 (Hidden Edge Case): Empty Array []", "isShown": False, "passed": p5, "expected": "k=0, nums=[]", "actual": f"k={k5}, nums={n5}"})
     else:
         results.append({"id": 1, "name": "Test Case 1 (Shown): remove_duplicates definition", "isShown": True, "passed": False, "expected": "def remove_duplicates(nums)", "actual": "Function not found"})
         results.append({"id": 2, "name": "Test Case 2 (Hidden): In-place unique count", "isShown": False, "passed": False, "expected": "k=5, nums=[0, 1, 2, 3, 4]", "actual": "Blocked"})
@@ -447,15 +600,90 @@ except Exception as e:
 json.dumps(results)
 `;
 
-    default:
+    default: {
+      const q = typeof questionOrId === 'object' ? questionOrId : null;
+      if (q && q.testHarness && typeof q.testHarness === 'string' && q.testHarness.trim()) {
+        const rawHarness = q.testHarness.trim();
+        return `
+import sys, io, json, traceback
+
+_teacher_code = ${JSON.stringify(rawHarness)}
+results = []
+
+try:
+    _exec_globals = dict(globals())
+    _exec_locals = {}
+    _buf = io.StringIO()
+    _old_stdout = sys.stdout
+    sys.stdout = _buf
+    try:
+        exec(_teacher_code, _exec_globals, _exec_locals)
+    finally:
+        sys.stdout = _old_stdout
+    
+    _stdout_val = _buf.getvalue().strip()
+
+    if 'results' in _exec_locals and isinstance(_exec_locals['results'], list) and len(_exec_locals['results']) > 0:
+        results = _exec_locals['results']
+    elif 'results' in _exec_globals and isinstance(_exec_globals['results'], list) and len(_exec_globals['results']) > 0:
+        results = _exec_globals['results']
+    elif "FAILED:" in _stdout_val:
+        results.append({
+            "id": 1,
+            "name": "Custom Test Case (Assertion)",
+            "isShown": True,
+            "passed": False,
+            "expected": "Assertion passed",
+            "actual": _stdout_val
+        })
+    else:
+        results.append({
+            "id": 1,
+            "name": "Teacher Custom Test Harness",
+            "isShown": True,
+            "passed": True,
+            "expected": "All custom assertions pass",
+            "actual": _stdout_val or "Assertions passed cleanly"
+        })
+except AssertionError as ae:
+    results.append({
+        "id": 1,
+        "name": "Teacher Custom Assertion",
+        "isShown": True,
+        "passed": False,
+        "expected": "Assertion satisfied",
+        "actual": f"AssertionError: {str(ae) or 'Failed assertion'}"
+    })
+except Exception as e:
+    results.append({
+        "id": 1,
+        "name": "Teacher Test Harness Execution",
+        "isShown": True,
+        "passed": False,
+        "expected": "Zero runtime exceptions",
+        "actual": f"{type(e).__name__}: {str(e)}"
+    })
+
+json.dumps(results)
+`;
+      }
+
+      // If no custom test harness was supplied, NEVER return fake passed: true!
       return `
 import json
 results = [
-    {"id": 1, "name": "Test Case 1 (Shown): Execution", "isShown": True, "passed": True, "expected": "Valid execution", "actual": "Completed cleanly"},
-    {"id": 2, "name": "Test Case 2 (Hidden): Output Assertion", "isShown": False, "passed": True, "expected": "Valid format", "actual": "Assertion verified"}
+    {
+        "id": 1,
+        "name": "Custom Problem Test Suite",
+        "isShown": True,
+        "passed": False,
+        "expected": "Instructor Test Harness Defined",
+        "actual": "No hidden test harness configured by the instructor for this custom problem. Cannot mark as passed without assertions."
+    }
 ]
 json.dumps(results)
 `;
+    }
   }
 };
 
@@ -502,7 +730,109 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
   // Complexity & Big-O State (Integrated above test cases)
   const [complexityData, setComplexityData] = useState<ComplexityAnalysis | null>(null);
 
+  // Academic Integrity: Multi-signal tracking (Warnings & Tab switches)
+  const [integrityWarning, setIntegrityWarning] = useState<string | null>(null);
+  const tabSwitchCount = useRef<number>(0);
+
   const debounceTimer = useRef<any>(null);
+
+  // Academic Integrity: Listen for tab-switching / external window focus
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) {
+        tabSwitchCount.current += 1;
+        if (tabSwitchCount.current >= 3 && tabSwitchCount.current < 6) {
+          setIntegrityWarning(`⚠️ Academic Integrity Signal: External window focus detected (${tabSwitchCount.current} times). Please maintain focus on the IDE.`);
+        } else if (tabSwitchCount.current >= 6) {
+          handleLockAccount('Repeated tab switches / external browser focus events (6+ occurrences).');
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [activeStudentId]);
+
+  // Real-Time Teacher Pedagogical Feedback Notification
+  const [teacherFeedback, setTeacherFeedback] = useState<{ id?: string; note: string; created_at?: string } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkFeedback() {
+      try {
+        const { data } = await supabase
+          .from('teacher_feedback')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (data && data.length > 0 && isMounted) {
+          const target = activeStudentId.toLowerCase();
+          const relevant = data.find((f: any) => {
+            const sId = (f.student_id || '').toLowerCase();
+            return sId === target || (target === 's edwin' && (sId === 'demo student' || sId === 's edwin'));
+          });
+
+          if (relevant) {
+            const dismissedKey = `socrates_dismissed_feedback_${relevant.id || relevant.created_at}`;
+            if (!localStorage.getItem(dismissedKey)) {
+              setTeacherFeedback(relevant);
+            }
+          }
+        }
+      } catch {
+        // Ignored
+      }
+    }
+
+    checkFeedback();
+    const interval = setInterval(checkFeedback, 3000);
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'socrates_last_teacher_feedback' && e.newValue) {
+        try {
+          const payload = JSON.parse(e.newValue);
+          const target = activeStudentId.toLowerCase();
+          const sId = (payload.student_id || '').toLowerCase();
+          if (sId === target || (target === 's edwin' && (sId === 'demo student' || sId === 's edwin'))) {
+            const dismissedKey = `socrates_dismissed_feedback_${payload.id || payload.created_at || payload.timestamp}`;
+            if (!localStorage.getItem(dismissedKey)) {
+              setTeacherFeedback(payload);
+            }
+          }
+        } catch {
+          // Ignored
+        }
+      }
+    };
+
+    const handleCustomEvent = (e: any) => {
+      if (e.detail) {
+        const payload = e.detail;
+        const target = activeStudentId.toLowerCase();
+        const sId = (payload.student_id || '').toLowerCase();
+        if (sId === target || (target === 's edwin' && (sId === 'demo student' || sId === 's edwin'))) {
+          setTeacherFeedback(payload);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('socrates:teacher_feedback_sent', handleCustomEvent);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('socrates:teacher_feedback_sent', handleCustomEvent);
+    };
+  }, [activeStudentId]);
+
+  const handleDismissTeacherFeedback = () => {
+    if (teacherFeedback) {
+      localStorage.setItem(`socrates_dismissed_feedback_${teacherFeedback.id || teacherFeedback.created_at}`, 'true');
+      setTeacherFeedback(null);
+    }
+  };
 
   // Load code from LocalStorage + Cloud Sync from Supabase
   useEffect(() => {
@@ -527,7 +857,7 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
           setCurrentCode(data.code);
           localStorage.setItem(`socrates_editor_code_${currentQuestion.id}`, data.code);
         }
-      } catch (e) {
+      } catch {
         // Fallback to local
       }
     }
@@ -546,6 +876,7 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
         const py = await window.loadPyodide();
         setPyodide(py);
         setIsPyodideReady(true);
+        (window as any).__pyodideReady = true;
       } catch (err) {
         console.error("Failed to load Pyodide:", err);
       }
@@ -567,7 +898,7 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
           code: newCode,
           updated_at: new Date().toISOString()
         });
-      } catch (err) {
+      } catch {
         // Fallback to local storage silently
       }
     }, 1200);
@@ -582,7 +913,9 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
           .delete()
           .eq('student_id', activeStudentId)
           .eq('question_id', currentQuestion.id);
-      } catch (e) {}
+      } catch {
+        // Ignored
+      }
     }
   };
 
@@ -652,7 +985,7 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
       await pyodide.runPythonAsync(currentCode);
 
       // 2. Run test harness for the current question
-      const testHarness = getTestHarnessForQuestion(currentQuestion.id);
+      const testHarness = getTestHarnessForQuestion(currentQuestion);
 
       const testJson = await pyodide.runPythonAsync(testHarness);
       const parsedResults = JSON.parse(testJson);
@@ -684,7 +1017,9 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
             ai_score: score
           })
         }).catch(() => {});
-      } catch (e) {}
+      } catch {
+        // Ignored
+      }
 
       // If student is struggling (score < 80), push to n8n instructor alert queue
       if (score < 80) {
@@ -699,7 +1034,9 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
             status: 'Action Required'
           }]);
           window.dispatchEvent(new CustomEvent('socrates:db_change', { detail: { table: 'instructor_alerts' } }));
-        } catch (e) {}
+        } catch {
+          // Ignored
+        }
       }
 
       // 2. Save submission to Supabase with Socratic debugging trail (PRD § 5.2b)
@@ -718,7 +1055,7 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
 
         // Broadcast real-time update event for instant cross-tab sync
         window.dispatchEvent(new CustomEvent('socrates:db_change', { detail: { table: 'submissions' } }));
-        try { localStorage.setItem('socrates_last_submission', Date.now().toString()); } catch (e) {}
+        try { localStorage.setItem('socrates_last_submission', Date.now().toString()); } catch {}
       } catch (err) {
         console.error(err);
       }
@@ -759,7 +1096,9 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
             ai_score: 0
           })
         }).catch(() => {});
-      } catch (e) {}
+      } catch {
+        // Ignored
+      }
 
       try {
         await supabase.from('instructor_alerts').insert([{
@@ -772,7 +1111,9 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
           status: 'Action Required'
         }]);
         window.dispatchEvent(new CustomEvent('socrates:db_change', { detail: { table: 'instructor_alerts' } }));
-      } catch (e) {}
+      } catch {
+        // Ignored
+      }
 
       try {
         await supabase.from('submissions').insert([
@@ -788,7 +1129,7 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
 
         // Broadcast real-time update event for instant cross-tab sync
         window.dispatchEvent(new CustomEvent('socrates:db_change', { detail: { table: 'submissions' } }));
-        try { localStorage.setItem('socrates_last_submission', Date.now().toString()); } catch (e) {}
+        try { localStorage.setItem('socrates_last_submission', Date.now().toString()); } catch {}
       } catch (e) {
         console.error(e);
       }
@@ -830,7 +1171,7 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
       ]).select();
       
       window.dispatchEvent(new CustomEvent('socrates:db_change', { detail: { table: 'anomalies' } }));
-      try { localStorage.setItem('socrates_last_anomaly', Date.now().toString()); } catch (e) {}
+      try { localStorage.setItem('socrates_last_anomaly', Date.now().toString()); } catch {}
       
       if (error) {
         alert("Supabase Insert Error: " + error.message);
@@ -846,11 +1187,68 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
   };
 
   if (isLocked) {
-    return <SuspendedScreen reason={lockReason} anomalyId={anomalyId} onAppealSubmitted={() => {}} />;
+    return (
+      <SuspendedScreen 
+        reason={lockReason} 
+        anomalyId={anomalyId} 
+        studentId={activeStudentId}
+        onAppealSubmitted={() => {}} 
+        onDismiss={() => setIsLocked(false)} 
+      />
+    );
   }
 
   return (
     <div className="flex h-screen bg-[#1e1e1e] text-gray-300 font-sans relative flex-col overflow-hidden">
+      {/* Non-intrusive Academic Integrity Warning Banner */}
+      {integrityWarning && (
+        <div className="bg-amber-950/90 border-b border-amber-500/40 px-4 py-2 text-xs text-amber-300 font-medium flex items-center justify-between z-50 animate-in fade-in duration-200">
+          <div className="flex items-center space-x-2">
+            <span>🛡️</span>
+            <span>{integrityWarning}</span>
+          </div>
+          <button 
+            onClick={() => setIntegrityWarning(null)} 
+            className="text-amber-400 hover:text-white font-bold ml-4 cursor-pointer text-xs"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Real-Time Teacher Pedagogical Feedback Notification */}
+      {teacherFeedback && (
+        <div className="bg-gradient-to-r from-purple-950/95 via-indigo-950/95 to-slate-900/95 border-b border-purple-500/50 px-5 py-2.5 text-xs text-purple-200 font-medium flex items-center justify-between z-50 shadow-xl animate-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 rounded-xl bg-purple-600/30 border border-purple-400/50 flex items-center justify-center text-base shadow-inner flex-shrink-0">
+              👨‍🏫
+            </div>
+            <div>
+              <div className="font-bold text-white flex items-center space-x-2">
+                <span>Personal Guidance from Instructor</span>
+                <span className="text-[10px] bg-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/40">Pedagogical Review</span>
+              </div>
+              <p className="text-purple-100 font-sans text-xs mt-0.5 leading-snug">"{teacherFeedback.note}"</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+            <button
+              onClick={() => {
+                setChatOpen(true);
+              }}
+              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold transition cursor-pointer flex items-center space-x-1.5 shadow-md"
+            >
+              <span>💬 Discuss with Socrates</span>
+            </button>
+            <button
+              onClick={handleDismissTeacherFeedback}
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white rounded-xl text-xs transition cursor-pointer"
+            >
+              ✕ Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Main 2-Pane Work Area */}
       <div className="flex flex-grow overflow-hidden relative">
@@ -914,14 +1312,14 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
             </div>
 
             <div className="flex items-center space-x-2">
-              <button 
-                onClick={() => setSettingsOpen(true)}
-                className="p-1.5 bg-[#1e1e1e] hover:bg-gray-700 text-gray-400 hover:text-white rounded-lg transition border border-gray-700/60 cursor-pointer flex items-center space-x-1"
-                title="AI Settings & Gemini API Key"
+              <div 
+                className="px-2.5 py-1 bg-[#1e1e1e] text-emerald-400 rounded-lg border border-emerald-500/30 flex items-center space-x-1.5 text-xs font-mono select-none"
+                title="Socrates AI is provisioned by your institution. No student API key required."
               >
-                <Settings size={14} />
-                <span className="text-[11px] font-medium hidden sm:inline text-gray-300">Settings</span>
-              </button>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-[11px] font-semibold text-gray-200">Socrates AI:</span>
+                <span className="text-[10px] text-emerald-400 font-bold">Institutional Active</span>
+              </div>
               {onLogout && (
                 <button 
                   onClick={onLogout} 
@@ -937,6 +1335,7 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
           <CodeEditor 
             code={currentCode}
             onLockAccount={handleLockAccount} 
+            onWarning={setIntegrityWarning}
             onChange={handleCodeChange} 
           />
 
@@ -964,9 +1363,11 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-1 bg-[#1e1e1e] p-1 rounded-lg border border-gray-700">
             <button 
+              id="prev-question-btn"
               onClick={() => setCurrentQIndex(Math.max(0, currentQIndex - 1))}
               disabled={currentQIndex === 0}
               className="flex items-center px-2.5 py-1 rounded text-xs font-medium bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-gray-800 text-white transition cursor-pointer"
+              title="Previous Question"
             >
               <ChevronLeft size={14} className="mr-1" />
               Prev
@@ -975,9 +1376,11 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
               Q{currentQIndex + 1} of {questionsList.length}
             </span>
             <button 
+              id="next-question-btn"
               onClick={() => setCurrentQIndex(Math.min(questionsList.length - 1, currentQIndex + 1))}
               disabled={currentQIndex === questionsList.length - 1}
               className="flex items-center px-2.5 py-1 rounded text-xs font-medium bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-gray-800 text-white transition cursor-pointer"
+              title="Next Question"
             >
               Next
               <ChevronRight size={14} className="ml-1" />

@@ -97,7 +97,7 @@ function getMockCollection(table: string): any[] {
       return [];
     }
     return JSON.parse(data);
-  } catch (e) {
+  } catch {
     return [];
   }
 }
@@ -106,7 +106,7 @@ function getMockCollection(table: string): any[] {
 function saveMockCollection(table: string, items: any[]) {
   try {
     localStorage.setItem(`socrates_mock_db_${table}`, JSON.stringify(items));
-  } catch (e) {}
+  } catch {}
 }
 
 // Chainable Mock Query Builder mirroring Supabase PostgREST API
@@ -132,6 +132,16 @@ class MockQueryBuilder {
     return this;
   }
 
+  neq(field: string, value: any) {
+    this.filters.push(item => item[field] !== value);
+    return this;
+  }
+
+  single() {
+    this.limitCount = 1;
+    return this;
+  }
+
   order(field: string, options: { ascending?: boolean } = {}) {
     this.sortField = field;
     this.sortAscending = options.ascending !== false;
@@ -141,6 +151,13 @@ class MockQueryBuilder {
   limit(count: number) {
     this.limitCount = count;
     return this;
+  }
+
+  private notifyChange() {
+    try {
+      window.dispatchEvent(new CustomEvent('socrates:db_change', { detail: { table: this.table } }));
+      localStorage.setItem('socrates_last_db_event', JSON.stringify({ table: this.table, time: Date.now() }));
+    } catch {}
   }
 
   async insert(rows: any | any[]) {
@@ -154,34 +171,34 @@ class MockQueryBuilder {
       ...row
     }));
 
-    items.unshift(...newRecords);
+    items.push(...newRecords);
     saveMockCollection(this.table, items);
+    this.notifyChange();
     this.mutationResult = { data: newRecords, error: null };
     return this.mutationResult;
   }
 
-  async upsert(row: any) {
+  async upsert(row: any, options: { onConflict?: string } = {}) {
     this.isMutation = true;
     const items = getMockCollection(this.table);
-    const index = items.findIndex(item => 
-      (row.id && item.id === row.id) || 
-      (row.student_id && row.question_id && item.student_id === row.student_id && item.question_id === row.question_id)
-    );
-
-    const record = {
-      id: row.id || (index >= 0 ? items[index].id : `mock_${Date.now()}`),
-      created_at: index >= 0 ? items[index].created_at : new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      ...row
-    };
-
+    const conflictField = options.onConflict || 'id';
+    
+    const index = items.findIndex(item => item[conflictField] === row[conflictField]);
+    let record: any;
     if (index >= 0) {
-      items[index] = record;
+      items[index] = { ...items[index], ...row, updated_at: new Date().toISOString() };
+      record = items[index];
     } else {
-      items.unshift(record);
+      record = {
+        id: row.id || `mock_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        created_at: row.created_at || new Date().toISOString(),
+        ...row
+      };
+      items.push(record);
     }
 
     saveMockCollection(this.table, items);
+    this.notifyChange();
     this.mutationResult = { data: [record], error: null };
     return this.mutationResult;
   }
@@ -189,18 +206,17 @@ class MockQueryBuilder {
   async update(values: any) {
     this.isMutation = true;
     const items = getMockCollection(this.table);
-    let updatedCount = 0;
 
     const updated = items.map(item => {
       const matches = this.filters.length === 0 || this.filters.every(f => f(item));
       if (matches) {
-        updatedCount++;
         return { ...item, ...values, updated_at: new Date().toISOString() };
       }
       return item;
     });
 
     saveMockCollection(this.table, updated);
+    this.notifyChange();
     this.mutationResult = { data: updated, error: null };
     return this.mutationResult;
   }
@@ -213,12 +229,13 @@ class MockQueryBuilder {
     });
 
     saveMockCollection(this.table, remaining);
+    this.notifyChange();
     this.mutationResult = { data: remaining, error: null };
     return this.mutationResult;
   }
 
   // Promise-like resolution allowing `const { data, error } = await supabase.from(...)`
-  then(resolve: (result: { data: any[] | null; error: any | null }) => void) {
+  then(resolve: (result: { data: any | any[] | null; error: any | null }) => void) {
     if (this.isMutation) {
       resolve(this.mutationResult || { data: [], error: null });
       return;
@@ -251,7 +268,7 @@ class MockQueryBuilder {
       }
 
       resolve({ data: items, error: null });
-    } catch (err) {
+    } catch {
       resolve({ data: [], error: null });
     }
   }
@@ -265,7 +282,7 @@ export const supabase = {
     if (realSupabase) {
       try {
         return realSupabase.from(table);
-      } catch (e) {
+      } catch {
         return new MockQueryBuilder(table) as any;
       }
     }
@@ -275,7 +292,7 @@ export const supabase = {
     if (realSupabase && typeof realSupabase.channel === 'function') {
       try {
         return realSupabase.channel(name);
-      } catch (e) {
+      } catch {
         // Fallback
       }
     }
