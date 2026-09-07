@@ -44,17 +44,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://wlorxayesyfnsjvpwhjv.supabase.co/rest/v1/instructor_alerts",
+        "url": "={{ ($env.VITE_SUPABASE_URL || 'https://YOUR_SUPABASE_PROJECT.supabase.co') + '/rest/v1/instructor_alerts' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "apikey",
-              "value": "sb_publishable_IEDfewVmTrfkNLYdT_teyA_-s8Z4-cq"
+              "value": "={{ $env.VITE_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY' }}"
             },
             {
               "name": "Authorization",
-              "value": "Bearer sb_publishable_IEDfewVmTrfkNLYdT_teyA_-s8Z4-cq"
+              "value": "={{ 'Bearer ' + ($env.VITE_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY') }}"
             },
             {
               "name": "Content-Type",
