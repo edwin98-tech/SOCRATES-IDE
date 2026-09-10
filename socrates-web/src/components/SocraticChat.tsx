@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
-import { Key, Settings, Maximize2, Minus, Send, HelpCircle } from 'lucide-react';
+import { Maximize2, Minus, Send, HelpCircle } from 'lucide-react';
 import OwlMascot from './OwlMascot';
 import { callGeminiSocratic } from '../lib/gemini';
 
@@ -11,7 +11,6 @@ interface SocraticChatProps {
   errorContext?: string;
   studentCode?: string;
   problemDescription?: string;
-  onOpenSettings?: () => void;
   onMessagesChange?: (messages: any[]) => void;
 }
 
@@ -22,7 +21,6 @@ export default function SocraticChat({
   errorContext, 
   studentCode = '', 
   problemDescription = '',
-  onOpenSettings,
   onMessagesChange
 }: SocraticChatProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -252,22 +250,6 @@ export default function SocraticChat({
                 </div>
 
                 <div className="flex items-center space-x-1 text-gray-400">
-                  {onOpenSettings && (
-                    <button 
-                      onClick={onOpenSettings} 
-                      className="p-1 hover:text-gray-700 hover:bg-gray-100 rounded transition cursor-pointer"
-                      title="AI Settings & API Keys"
-                    >
-                      <Key size={13} />
-                    </button>
-                  )}
-                  <button 
-                    onClick={onOpenSettings}
-                    className="p-1 hover:text-gray-700 hover:bg-gray-100 rounded transition cursor-pointer"
-                    title="Settings"
-                  >
-                    <Settings size={13} />
-                  </button>
                   <button 
                     onClick={() => setIsExpanded(!isExpanded)}
                     className="p-1 hover:text-gray-700 hover:bg-gray-100 rounded transition cursor-pointer"

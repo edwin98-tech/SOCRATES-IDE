@@ -3,7 +3,6 @@ import CodeEditor from './CodeEditor';
 import ExecutionPanel, { type TestCaseResult } from './ExecutionPanel';
 import SocraticChat from './SocraticChat';
 import SuspendedScreen from './SuspendedScreen';
-import AISettingsModal from './AISettingsModal';
 import { supabase } from '../lib/supabaseClient';
 import { ChevronLeft, ChevronRight, RotateCcw, Play, CheckCircle2, BookOpen } from 'lucide-react';
 import { analyzeCodeComplexity, type ComplexityAnalysis } from '../lib/gemini';
@@ -711,7 +710,6 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
   const [activeTab, setActiveTab] = useState<'terminal' | 'testcases'>('terminal');
   
   const [chatOpen, setChatOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [output, setOutput] = useState('');
   
@@ -1420,7 +1418,7 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
         </div>
       </div>
 
-      {/* Socratic AI Mentor Floating Dock & Chat (Image 2 Style) */}
+      {/* Socratic AI Mentor Floating Dock & Chat */}
       <SocraticChat 
         isVisible={chatOpen} 
         onToggleVisible={() => setChatOpen(!chatOpen)}
@@ -1428,14 +1426,7 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
         errorContext={output}
         studentCode={currentCode}
         problemDescription={`${currentQuestion.title}: ${currentQuestion.description}`}
-        onOpenSettings={() => setSettingsOpen(true)}
         onMessagesChange={setChatTrail}
-      />
-
-      {/* SensAI Settings Modal (API Keys / Usage) */}
-      <AISettingsModal 
-        isOpen={settingsOpen} 
-        onClose={() => setSettingsOpen(false)} 
       />
     </div>
   );
