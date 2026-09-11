@@ -126,8 +126,10 @@ export default function SocraticChat({
       problemDescription
     });
 
+    const cleanMsg = res.message.replace(/\[TAG:\s*[^\]]+\]/gi, '').trim();
+    const tag = res.misconceptionTag || res.message.match(/\[TAG:\s*([^\]]+)\]/i)?.[1]?.trim();
     setMessages([
-      { role: 'ai', text: res.message, tag: res.misconceptionTag }
+      { role: 'ai', text: cleanMsg, tag }
     ]);
     setIsLoading(false);
   };
@@ -149,7 +151,9 @@ export default function SocraticChat({
       chatHistory: newMessages
     });
 
-    setMessages([...newMessages, { role: 'ai', text: res.message, tag: res.misconceptionTag }]);
+    const cleanMsg = res.message.replace(/\[TAG:\s*[^\]]+\]/gi, '').trim();
+    const tag = res.misconceptionTag || res.message.match(/\[TAG:\s*([^\]]+)\]/i)?.[1]?.trim();
+    setMessages([...newMessages, { role: 'ai', text: cleanMsg, tag }]);
     setIsLoading(false);
   };
 
@@ -322,7 +326,7 @@ export default function SocraticChat({
                             : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'
                         }`}
                       >
-                        {m.text}
+                        {m.text.replace(/\[TAG:\s*[^\]]+\]/gi, '').trim()}
                       </div>
                     </div>
 

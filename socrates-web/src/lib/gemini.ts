@@ -156,7 +156,7 @@ function sanitizeSocraticResponse(rawText: string): SocraticResponse {
   // Extract misconception tag [TAG: ...]
   const tagMatch = text.match(/\[TAG:\s*([^\]]+)\]/i);
   const misconceptionTag = tagMatch ? tagMatch[1].trim() : undefined;
-  text = text.replace(/\[TAG:\s*[^\]]+\]/i, '').trim();
+  text = text.replace(/\[TAG:\s*[^\]]+\]/gi, '').trim();
 
   // If reasoning models output draft steps like "* Draft 1:*", "* Draft 2:*", "* Final:*", extract the clean answer
   if (/\*?\s*(?:Draft\s*\d+|Final|Response|Output)\s*:\*?/i.test(text)) {
@@ -207,46 +207,46 @@ export function generateSocraticPedagogicalResponse({
   if (errLower.includes('syntaxerror')) {
     if (studentCode.includes('def ') && !studentCode.includes(':')) {
       return {
-        message: "Notice your function definition line. In Python, what punctuation mark must always follow the parameter list to open a new code block? [TAG: Missing Function Colon]",
+        message: "Notice your function definition line. In Python, what punctuation mark must always follow the parameter list to open a new code block?",
         misconceptionTag: "Missing Function Colon"
       };
     }
     if ((studentCode.match(/\(/g) || []).length !== (studentCode.match(/\)/g) || []).length) {
       return {
-        message: "Python detected an unmatched parenthesis. Count your opening `(` and closing `)` brackets—does every opening bracket have a corresponding close? [TAG: Unmatched Parentheses]",
+        message: "Python detected an unmatched parenthesis. Count your opening `(` and closing `)` brackets—does every opening bracket have a corresponding close?",
         misconceptionTag: "Unmatched Parentheses"
       };
     }
     return {
-      message: "Take a close look at the line where the SyntaxError was detected. Which character or statement does Python seem to be stumbling over? [TAG: Syntax Parsing Error]",
+      message: "Take a close look at the line where the SyntaxError was detected. Which character or statement does Python seem to be stumbling over?",
       misconceptionTag: "Syntax Parsing Error"
     };
   }
 
   if (errLower.includes('indentationerror')) {
     return {
-      message: "Python uses indentation to determine which code belongs inside your function or loop. Are all the lines inside your block indented consistently with 4 spaces? [TAG: Indentation Inconsistency]",
+      message: "Python uses indentation to determine which code belongs inside your function or loop. Are all the lines inside your block indented consistently with 4 spaces?",
       misconceptionTag: "Indentation Inconsistency"
     };
   }
 
   if (errLower.includes('indexerror')) {
     return {
-      message: "Your code encountered an `IndexError: list index out of range`. Remember that Python lists are 0-indexed. If a list has length N, what is the highest valid index you can access? [TAG: Off-by-one Boundary]",
+      message: "Your code encountered an `IndexError: list index out of range`. Remember that Python lists are 0-indexed. If a list has length N, what is the highest valid index you can access?",
       misconceptionTag: "Off-by-one Boundary"
     };
   }
 
   if (errLower.includes('nameerror')) {
     return {
-      message: "Python raised a `NameError`. It cannot find a variable or function you're trying to use. Did you declare it before using it, or might there be a small typo in the name? [TAG: Variable Scope / Name Error]",
+      message: "Python raised a `NameError`. It cannot find a variable or function you're trying to use. Did you declare it before using it, or might there be a small typo in the name?",
       misconceptionTag: "Variable Scope / Name Error"
     };
   }
 
   if (errLower.includes('typeerror')) {
     return {
-      message: "A `TypeError` occurred. Are you attempting an operation between incompatible types—for instance, trying to add a number to a string or index into something that isn't a list? [TAG: Type Incompatibility]",
+      message: "A `TypeError` occurred. Are you attempting an operation between incompatible types—for instance, trying to add a number to a string or index into something that isn't a list?",
       misconceptionTag: "Type Incompatibility"
     };
   }
@@ -255,18 +255,18 @@ export function generateSocraticPedagogicalResponse({
   if (descLower.includes('palindrome') || descLower.includes('1.2.7')) {
     if (!codeLower.includes('lower(') && !codeLower.includes('.lower()')) {
       return {
-        message: "Think about how uppercase and lowercase characters behave in comparisons. How should `'M'` and `'m'` be treated in a phrase like `'Madam, I\\'m Adam'`? [TAG: Case Sensitivity Misconception]",
+        message: "Think about how uppercase and lowercase characters behave in comparisons. How should `'M'` and `'m'` be treated in a phrase like `'Madam, I\\'m Adam'`?",
         misconceptionTag: "Case Sensitivity Misconception"
       };
     }
     if (!codeLower.includes('isalnum') && !codeLower.includes('isalpha')) {
       return {
-        message: "When checking a sentence like `'Was it a car or a cat I saw?'`, what should you do with spaces, commas, and question marks? Should they be compared or filtered out? [TAG: Non-Alphanumeric Punctuation]",
+        message: "When checking a sentence like `'Was it a car or a cat I saw?'`, what should you do with spaces, commas, and question marks? Should they be compared or filtered out?",
         misconceptionTag: "Non-Alphanumeric Punctuation"
       };
     }
     return {
-      message: "Consider what pointers you are using to compare the characters. What condition tells you when the left and right pointers have safely checked the entire string? [TAG: Two-Pointer Convergence]",
+      message: "Consider what pointers you are using to compare the characters. What condition tells you when the left and right pointers have safely checked the entire string?",
       misconceptionTag: "Two-Pointer Convergence"
     };
   }
@@ -274,12 +274,12 @@ export function generateSocraticPedagogicalResponse({
   if (descLower.includes('parenthes') || descLower.includes('1.2.8')) {
     if (!codeLower.includes('stack') && !codeLower.includes('.pop(') && !codeLower.includes('.append(')) {
       return {
-        message: "To make sure every closing bracket matches the most recently opened bracket, what data structure lets you check elements in Last-In, First-Out (LIFO) order? [TAG: LIFO Stack Inversion]",
+        message: "To make sure every closing bracket matches the most recently opened bracket, what data structure lets you check elements in Last-In, First-Out (LIFO) order?",
         misconceptionTag: "LIFO Stack Inversion"
       };
     }
     return {
-      message: "What should your algorithm do if you encounter a closing bracket like `]` when the stack is already empty, or if unmatched brackets remain at the end? [TAG: Stack Underflow / Remainder]",
+      message: "What should your algorithm do if you encounter a closing bracket like `]` when the stack is already empty, or if unmatched brackets remain at the end?",
       misconceptionTag: "Stack Underflow / Remainder"
     };
   }
@@ -287,26 +287,26 @@ export function generateSocraticPedagogicalResponse({
   if (descLower.includes('binary search') || descLower.includes('1.2.6')) {
     if (codeLower.includes('while left < right')) {
       return {
-        message: "Check your loop condition: if you use `left < right`, what happens when there is only one element remaining in the search window (`left == right`)? Will it be inspected? [TAG: Loop Boundary Condition]",
+        message: "Check your loop condition: if you use `left < right`, what happens when there is only one element remaining in the search window (`left == right`)? Will it be inspected?",
         misconceptionTag: "Loop Boundary Condition"
       };
     }
     return {
-      message: "How are you calculating your midpoint `mid`? And if `arr[mid]` is less than your target, which half of the array should you search next? [TAG: Binary Search Partition]",
+      message: "How are you calculating your midpoint `mid`? And if `arr[mid]` is less than your target, which half of the array should you search next?",
       misconceptionTag: "Binary Search Partition"
     };
   }
 
   if (descLower.includes('two sum') || descLower.includes('1.2.4')) {
     return {
-      message: "Consider the case where target is 6 and the array contains `[3, 3]`. If you use a hash table or indices, how can you ensure you don't use the exact same element twice? [TAG: Duplicate Value Collision]",
+      message: "Consider the case where target is 6 and the array contains `[3, 3]`. If you use a hash table or indices, how can you ensure you don't use the exact same element twice?",
       misconceptionTag: "Duplicate Value Collision"
     };
   }
 
   if (descLower.includes('revers') || descLower.includes('1.2.3')) {
     return {
-      message: "If you swap elements from `0` all the way to `len(arr)`, what happens to the elements by the end of the loop? How far through the array should you iterate to reverse it in place? [TAG: Double Swap Reversion]",
+      message: "If you swap elements from `0` all the way to `len(arr)`, what happens to the elements by the end of the loop? How far through the array should you iterate to reverse it in place?",
       misconceptionTag: "Double Swap Reversion"
     };
   }
@@ -314,28 +314,28 @@ export function generateSocraticPedagogicalResponse({
   // 3. Conversational Intent Handling
   if (userMsgLower.includes('give me') || userMsgLower.includes('show me the code') || userMsgLower.includes('solution') || userMsgLower.includes('write the code')) {
     return {
-      message: "As your Socratic mentor, I won't write the code for you—because debugging it yourself is how you build real engineering mastery! Let's take the first step together: what variable or data structure should you declare first? [TAG: Socratic Cognitive Scaffolding]",
+      message: "As your Socratic mentor, I won't write the code for you—because debugging it yourself is how you build real engineering mastery! Let's take the first step together: what variable or data structure should you declare first?",
       misconceptionTag: "Socratic Cognitive Scaffolding"
     };
   }
 
   if (userMsgLower.includes('start') || userMsgLower.includes('how to solve') || userMsgLower.includes('begin') || userMsgLower.includes('help me')) {
     return {
-      message: "Let's decompose the problem together. In plain words without any code: what is the input, what is the expected output, and what is the very first check you should perform? [TAG: Problem Decomposition]",
+      message: "Let's decompose the problem together. In plain words without any code: what is the input, what is the expected output, and what is the very first check you should perform?",
       misconceptionTag: "Problem Decomposition"
     };
   }
 
   if (userMsgLower.includes('why') || userMsgLower.includes('failing') || userMsgLower.includes('error') || userMsgLower.includes('wrong')) {
     return {
-      message: "Let's trace your code like a computer would! If you trace with a tiny test case (like an empty array `[]` or a 2-element array), what does each variable contain after the first loop iteration? [TAG: Trace Execution]",
+      message: "Let's trace your code like a computer would! If you trace with a tiny test case (like an empty array `[]` or a 2-element array), what does each variable contain after the first loop iteration?",
       misconceptionTag: "Trace Execution"
     };
   }
 
   // Default pedagogical guidance
   return {
-    message: "Let's examine your current approach. What assumptions does your code make about the input, and what happens in the boundary case where the input is empty or has a single element? [TAG: Edge Case Exploration]",
+    message: "Let's examine your current approach. What assumptions does your code make about the input, and what happens in the boundary case where the input is empty or has a single element?",
     misconceptionTag: "Edge Case Exploration"
   };
 }

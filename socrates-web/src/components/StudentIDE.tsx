@@ -921,12 +921,21 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
     const lines = raw.split('\n');
     const cleanedLines = lines.filter(line => {
       const l = line.trim();
+      if (!l) return false;
       if (l.includes('_pyodide') || l.includes('eval_code_async') || l.includes('CodeRunner')) return false;
       if (l.startsWith('self.ast') || l.startsWith('mod = compile') || l.includes('PyCF_ONLY_AST')) return false;
+      if (l.includes('eval(self.code') || l.includes('coroutine = eval')) return false;
+      if (l.includes('pyodide') || (l.includes('/lib/python3') && (l.includes('asyncio') || l.includes('importlib')))) return false;
       if (l.startsWith('^^^^') && !l.includes('def') && !l.includes('print')) return false;
       return true;
     });
-    return cleanedLines.join('\n').replace(/^\\n+/, '').trim() || raw;
+
+    const mappedLines = cleanedLines.map(line => {
+      return line.replace(/File\s+"<(?:exec|string)>"/g, 'File "solution.py"');
+    });
+
+    const result = mappedLines.join('\n').trim();
+    return result || raw;
   };
 
   const handleRun = async () => {
@@ -1310,14 +1319,6 @@ export default function StudentIDE({ onLogout, studentName = 'S EDWIN' }: Studen
             </div>
 
             <div className="flex items-center space-x-2">
-              <div 
-                className="px-2.5 py-1 bg-[#1e1e1e] text-emerald-400 rounded-lg border border-emerald-500/30 flex items-center space-x-1.5 text-xs font-mono select-none"
-                title="Socrates AI is provisioned by your institution. No student API key required."
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="text-[11px] font-semibold text-gray-200">Socrates AI:</span>
-                <span className="text-[10px] text-emerald-400 font-bold">Institutional Active</span>
-              </div>
               {onLogout && (
                 <button 
                   onClick={onLogout} 
